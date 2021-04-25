@@ -1,0 +1,6 @@
+This is an implementation in which every samples is weighted with an exponential fall-off (or increase).
+The decay and samples parameters of set(in)finiteDecay allows to set the decay an element undergoes. 
+In short if a sample with weight W is inserted after other samples-1 samples are inserted its contribution to 
+accumulator will be decay*W. If the buffer is set-up as infinite the weight will keep reducing at the same rate.
+If otherwise the buffer was set as finite the item contribution to accumulator if another insert is done will be approximately 0.
+If the buffer is set to infinte decay must of course be less than 1 (otherwise the accumulator will reach infinity).
