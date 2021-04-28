@@ -39,10 +39,10 @@ protected:
   // Number of samples in run-off accumulator
   int m_accumulatorSamplesRunoff;
 };
-template <unsigned int N, typename T> class ExpoDecayWeightMulti
+template <typename T> class ExpoDecayWeightMulti
 {
 public:
-  ExpoDecayWeightMulti() {  setInfiniteDecay(0.5, 20); }
+  ExpoDecayWeightMulti(unsigned int numElements): m_numElements(numElements) {  setInfiniteDecay(0.5, 20); }
   // Sets the parameters to have a sample undergo decay after historyLength samples are pushed in.
   // After that the sample will be removed from the accumulator
   bool setFiniteDecay(qreal weightEnd, int historyLength){
@@ -74,17 +74,44 @@ public:
     return ret;
   }
   inline const QList<qreal> &accumulator() { return m_accumulator; }
+  inline unsigned int numElements() const { return m_numElements; }
+
 protected:
   // Push a sample and returns the value of the accumulator
+  inline void push(const T &sample, const std::function<qreal(int i)> &itemWeight){
+      if(m_historyLen && m_history.size()>=m_historyLen)
+      {
+        auto item=m_history.takeFirst();
+        for(int i=0; i<m_numElements; i++)
+          m_accumulator[i]-=itemWeight(i)*m_histEndWeight;
+      }
+      m_accumulatorSamplesRunoff++;
+      for(int i=0; i<m_numElements; i++)
+      {
+        qreal curW=itemWeight(i);
+        m_accumulatorRunoff[i]=m_accumulatorRunoff[i]*m_decay+curW;
+        m_accumulator[i]=m_accumulator[i]*m_decay+curW;
+      }
+      if(m_historyLen && m_accumulatorSamplesRunoff==m_historyLen)
+      {
+        m_accumulatorSamplesRunoff=0;
+        m_accumulator=m_accumulatorRunoff;
+        for(int i=0; i<m_numElements; i++)
+          m_accumulatorRunoff[i]=0.;
+      }
+      if(m_historyLen)
+        m_history.append(sample);
+  }
+
   inline void push(const T &sample, const std::function<qreal(const T &, int i)> &itemWeight){
     if(m_historyLen && m_history.size()>=m_historyLen)
     {
       auto item=m_history.takeFirst();
-      for(int i=0; i<N; i++)
-        m_accumulator-=itemWeight(item, i)*m_histEndWeight;
+      for(int i=0; i<m_numElements; i++)
+        m_accumulator[i]-=itemWeight(item, i)*m_histEndWeight;
     }
     m_accumulatorSamplesRunoff++;
-    for(int i=0; i<N; i++)
+    for(int i=0; i<m_numElements; i++)
     {
       qreal curW=itemWeight(sample, i);
       m_accumulatorRunoff[i]=m_accumulatorRunoff[i]*m_decay+curW;
@@ -94,7 +121,7 @@ protected:
     {
       m_accumulatorSamplesRunoff=0;
       m_accumulator=m_accumulatorRunoff;
-      for(int i=0; i<N; i++)
+      for(int i=0; i<m_numElements; i++)
         m_accumulatorRunoff[i]=0.;
     }
     if(m_historyLen)
@@ -114,11 +141,13 @@ protected:
   QList<qreal> m_accumulatorRunoff;
   // Number of samples in run-off accumulator
   int m_accumulatorSamplesRunoff;
+  //
+  unsigned int m_numElements;
 private:
   void resetAccumulator()
   {
     m_accumulator.clear();
-    for(int i=0;i<N;i++) m_accumulator.append(0.);
+    for(int i=0;i<m_numElements;i++) m_accumulator.append(0.);
     m_accumulatorRunoff=m_accumulator;
     m_accumulatorSamplesRunoff=0;
   }
